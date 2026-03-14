@@ -60,8 +60,10 @@ export default function App(): JSX.Element {
     const es = new EventSource(`${API}/progress`)
     es.onmessage = (e) => {
       const msg: string = e.data
-      if (msg.startsWith('STEP:')) {
-        addLog(msg.slice(5))
+      if (msg.startsWith('LOG:')) {
+        addLog(msg.slice(4))          // raw subprocess line
+      } else if (msg.startsWith('STEP:')) {
+        addLog('▶ ' + msg.slice(5))  // pipeline step header
       } else if (msg.startsWith('DONE:')) {
         es.close()
         addLog('✅ ' + msg.slice(5))
