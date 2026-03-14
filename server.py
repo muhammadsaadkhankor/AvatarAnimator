@@ -68,14 +68,15 @@ def upload_avatar():
     return jsonify({'success': True})
 
 # ── Run a subprocess and stream every line to SSE ────────────────────────────
-def run_streaming(cmd, timeout=900) -> tuple[int, str]:
+def run_streaming(cmd, timeout=900, env=None) -> tuple[int, str]:
     """Run cmd, emit each output line live, return (returncode, full_output)."""
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,   # merge stderr into stdout
+        stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
+        env=env,
     )
     lines = []
     try:
@@ -137,11 +138,14 @@ def run_pipeline():
         for old in FBX_TMP.glob('*.fbx'):
             old.unlink()
 
+        import os
+        env = os.environ.copy()
+        env['MIXAMO_TOKEN'] = token
         cmd = ['python3', str(BASE / 'autodownloadanim.py'),
-               '--token', token, '--fbx', str(avatar_fbx),
+               '--fbx', str(avatar_fbx),
                '--output', str(FBX_TMP)]
 
-        rc, out = run_streaming(cmd, timeout=900)
+        rc, out = run_streaming(cmd, timeout=900, env=env)
 
         fbx_files = list(FBX_TMP.glob('*.fbx'))
         if not fbx_files:
