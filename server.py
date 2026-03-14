@@ -13,7 +13,7 @@ app = Flask(__name__)
 CORS(app)
 
 BASE = Path(__file__).parent
-COMBINER_PUBLIC = BASE / "glb-animation-combiner" / "public"
+COMBINER_PUBLIC = BASE / "Animation_mapper" / "public"
 MODELS_DIR      = COMBINER_PUBLIC / "models"
 ANIMS_DIR       = COMBINER_PUBLIC / "animations"
 FBX_TMP         = BASE / "fbx_animations"
@@ -97,12 +97,12 @@ def run_pipeline():
 
             fbx_files = list(FBX_TMP.glob('*.fbx'))
             if not fbx_files:
-                emit(f"ERROR:No FBX downloaded\n{r.stdout[-800:]}")
+                emit(f"ERROR:No FBX downloaded\n--- STDOUT ---\n{r.stdout[-800:]}\n--- STDERR ---\n{r.stderr[-400:]}")
                 return
 
             emit(f"STEP:Downloaded {len(fbx_files)} animations. Converting FBX → GLB...")
 
-            # Step 3 — FBX → GLB into public/animations/
+            # Step 3 — FBX → GLB into Animation_mapper/public/animations/
             r = subprocess.run(
                 ['blender', '--background', '--python', str(BASE / 'fbx-to-glb.py'),
                  '--', str(FBX_TMP), '--out', str(ANIMS_DIR)],
@@ -110,7 +110,7 @@ def run_pipeline():
             )
             glb_files = list(ANIMS_DIR.glob('*.glb'))
             if not glb_files:
-                emit(f"ERROR:FBX→GLB failed\n{r.stderr[-500:]}")
+                emit(f"ERROR:FBX→GLB failed\n--- STDOUT ---\n{r.stdout[-500:]}\n--- STDERR ---\n{r.stderr[-500:]}")
                 return
 
             emit(f"DONE:{len(glb_files)} animations ready")

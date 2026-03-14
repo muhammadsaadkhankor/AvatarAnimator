@@ -159,36 +159,51 @@ def search_animations(query, token, char_id=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def upload_character(fbx_path, token):
-    """Upload FBX to Mixamo, wait for auto-rig, return character_id."""
+    """Upload FBX to Mixamo via multipart form, return character_id."""
     fbx_path = Path(fbx_path)
     size_kb = fbx_path.stat().st_size / 1024
     print(f"\n📤 Uploading: {fbx_path.name} ({size_kb:.0f} KB)")
 
-    # Request upload slot
-    headers = make_headers(token)
-    r = requests.post(f"{API}/characters",
-                       headers=headers,
-                       json={"filename": fbx_path.name, "type": "upload"},
-                       timeout=30)
-    r.raise_for_status()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-Api-Key": "mixamo2",
+        "Accept": "application/json",
+    }
+
+    with open(fbx_path, "rb") as f:
+        files = {"file": (fbx_path.name, f, "application/octet-stream")}
+        data  = {"name": fbx_path.stem, "type": "character"}
+        r = requests.post(
+            "https://www.mixamo.com/api/v1/characters",
+            headers=headers,
+            files=files,
+            data=data,
+            timeout=120,
+        )
+
+    print(f"   Upload status: {r.status_code}")
+    if r.status_code == 401:
+        print("\n❌ Token expired! Get a new one from mixamo.com console.\n")
+        sys.exit(1)
+
+    # Mixamo returns 200 or 201 with character info
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"Upload failed {r.status_code}: {r.text[:300]}")
+
     data = r.json()
+    print(f"   Response: {data}")
 
-    upload_url = data.get("upload_url") or data.get("url")
-    char_id = data.get("character_id") or data.get("id") or data.get("uuid")
-
-    # Upload the file
-    if upload_url:
-        print("   ⬆️  Uploading to cloud...")
-        with open(fbx_path, "rb") as f:
-            up = requests.put(upload_url, data=f.read(),
-                              headers={"Content-Type": "application/octet-stream"},
-                              timeout=120)
-            if up.status_code not in (200, 201, 204):
-                raise RuntimeError(f"Upload failed: {up.status_code}")
+    char_id = (
+        data.get("character_id")
+        or data.get("id")
+        or data.get("uuid")
+        or (data.get("data") or {}).get("id")
+        or (data.get("data") or {}).get("character_id")
+    )
 
     if not char_id:
         raise RuntimeError(
-            "Could not get character_id from Mixamo.\n"
+            f"Could not get character_id from response: {data}\n"
             "Try uploading manually at mixamo.com, then use --character-id"
         )
 
