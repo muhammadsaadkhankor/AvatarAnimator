@@ -38,6 +38,18 @@ export default function App(): JSX.Element {
     if (!avatarFile || !token) return
     setError(''); setLog([]); setStage('uploading')
 
+    addLog('Validating Mixamo token...')
+    const tv = await fetch(`${API}/validate-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    })
+    if (!tv.ok) {
+      const d = await tv.json()
+      setError(d.error); setStage('error'); return
+    }
+    addLog('✅ Token valid')
+
     addLog('Uploading avatar...')
     const ok = await uploadAvatar(avatarFile)
     if (!ok) { setStage('error'); return }

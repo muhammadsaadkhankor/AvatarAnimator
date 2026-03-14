@@ -36,6 +36,25 @@ def progress():
     return Response(stream(), mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
+# ── Validate Mixamo token ────────────────────────────────────────────────────
+@app.route('/api/validate-token', methods=['POST'])
+def validate_token():
+    token = (request.json or {}).get('token', '').strip()
+    if not token:
+        return jsonify({'valid': False, 'error': 'No token provided'}), 400
+    import requests as req_lib
+    try:
+        r = req_lib.get(
+            'https://www.mixamo.com/api/v1/products?page=1&limit=1&type=Motion',
+            headers={'Authorization': f'Bearer {token}', 'X-Api-Key': 'mixamo2', 'Accept': 'application/json'},
+            timeout=10
+        )
+        if r.status_code == 401:
+            return jsonify({'valid': False, 'error': 'Token invalid or expired'}), 401
+    except Exception as e:
+        return jsonify({'valid': False, 'error': str(e)}), 500
+    return jsonify({'valid': True})
+
 # ── Upload avatar ─────────────────────────────────────────────────────────────
 @app.route('/api/upload-avatar', methods=['POST'])
 def upload_avatar():
@@ -81,6 +100,19 @@ def run_pipeline():
         return jsonify({'error': 'Upload avatar first'}), 400
     if not token:
         return jsonify({'error': 'Mixamo token required'}), 400
+
+    # Pre-validate token before starting the long pipeline
+    import requests as req_lib
+    try:
+        r = req_lib.get(
+            'https://www.mixamo.com/api/v1/products?page=1&limit=1&type=Motion',
+            headers={'Authorization': f'Bearer {token}', 'X-Api-Key': 'mixamo2', 'Accept': 'application/json'},
+            timeout=10
+        )
+        if r.status_code == 401:
+            return jsonify({'error': 'Mixamo token is invalid or expired. Go to mixamo.com → F12 → Console → type: localStorage.access_token'}), 401
+    except Exception as e:
+        return jsonify({'error': f'Could not reach Mixamo: {e}'}), 500
 
     def run():
         # ── Step 1: GLB → FBX ────────────────────────────────────────────────
