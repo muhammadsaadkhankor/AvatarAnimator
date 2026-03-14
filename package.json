@@ -1,8 +1,0 @@
-{
-  "name": "autoanim-combiner",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "three": "^0.160.0"
-  }
-}
