@@ -17,7 +17,6 @@ export default function App(): JSX.Element {
   const [stage, setStage]         = useState<Stage>('idle')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [token, setToken]         = useState('')
-  const [charId, setCharId]       = useState('')
   const [log, setLog]             = useState<string[]>([])
   const [error, setError]         = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -49,7 +48,7 @@ export default function App(): JSX.Element {
     const r = await fetch(`${API}/pipeline`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, character_id: charId || undefined })
+      body: JSON.stringify({ token })
     })
     if (!r.ok) {
       const d = await r.json()
@@ -167,14 +166,7 @@ export default function App(): JSX.Element {
           onChange={e => setToken(e.target.value)}
           disabled={busy}
         />
-        <input
-          style={{ ...styles.input, marginTop: 8 }}
-          type="text"
-          placeholder="Character ID (optional — skip re-upload)"
-          value={charId}
-          onChange={e => setCharId(e.target.value)}
-          disabled={busy}
-        />
+
       </div>
 
       {/* Action */}

@@ -185,47 +185,54 @@ def upload_character(fbx_path, token):
     if r.status_code == 401:
         print("\n❌ Token expired! Get a new one from mixamo.com console.\n")
         sys.exit(1)
-
-    # Mixamo returns 200 or 201 with character info
-    if r.status_code not in (200, 201):
+    if r.status_code not in (200, 201, 202):
         raise RuntimeError(f"Upload failed {r.status_code}: {r.text[:300]}")
 
     data = r.json()
     print(f"   Response: {data}")
 
+    # 202 = queued for processing, uuid is the character id
     char_id = (
         data.get("character_id")
         or data.get("id")
         or data.get("uuid")
-        or (data.get("data") or {}).get("id")
-        or (data.get("data") or {}).get("character_id")
     )
 
     if not char_id:
-        raise RuntimeError(
-            f"Could not get character_id from response: {data}\n"
-            "Try uploading manually at mixamo.com, then use --character-id"
-        )
+        raise RuntimeError(f"Could not get character_id from response: {data}")
 
-    print(f"   ✅ Uploaded! character_id = {char_id}")
+    print(f"   ✅ Queued! character_id = {char_id}")
 
-    # Wait for auto-rig
-    print("   ⏳ Auto-rigging", end="", flush=True)
-    for _ in range(60):
-        try:
-            data = api_get(f"{API}/characters/{char_id}", token)
-            status = str(data.get("status", "")).lower()
-            if status in ("completed", "rigged", "ready"):
-                print(" ✅")
-                return char_id
-            if "error" in status or "fail" in status:
-                raise RuntimeError(f"Rig failed: {data}")
-        except Exception:
-            pass
+    # Poll until auto-rig is complete
+    print("   ⏳ Waiting for auto-rig", end="", flush=True)
+    for _ in range(120):  # up to 6 minutes
         time.sleep(3)
         print(".", end="", flush=True)
+        try:
+            headers = make_headers(token)
+            poll = requests.get(
+                f"{API}/characters/{char_id}",
+                headers=headers, timeout=30
+            )
+            if poll.status_code == 200:
+                d = poll.json()
+                status = str(d.get("status", "")).lower()
+                print(f" [{status}]", end="", flush=True)
+                if status in ("completed", "rigged", "ready", ""):
+                    # empty status also means ready on some responses
+                    print(" ✅")
+                    return char_id
+                if "error" in status or "fail" in status:
+                    raise RuntimeError(f"Auto-rig failed: {d}")
+            elif poll.status_code == 202:
+                # still processing
+                continue
+        except RuntimeError:
+            raise
+        except Exception:
+            pass
 
-    raise TimeoutError("Auto-rig timed out after 3 minutes")
+    raise TimeoutError("Auto-rig timed out after 6 minutes")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

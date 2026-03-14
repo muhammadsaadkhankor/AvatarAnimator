@@ -74,9 +74,8 @@ def run_streaming(cmd, timeout=900) -> tuple[int, str]:
 # ── Full pipeline ─────────────────────────────────────────────────────────────
 @app.route('/api/pipeline', methods=['POST'])
 def run_pipeline():
-    data         = request.json or {}
-    token        = data.get('token', '').strip()
-    character_id = data.get('character_id', '').strip()
+    data  = request.json or {}
+    token = data.get('token', '').strip()
 
     if not (MODELS_DIR / 'avatar.glb').exists():
         return jsonify({'error': 'Upload avatar first'}), 400
@@ -107,11 +106,8 @@ def run_pipeline():
             old.unlink()
 
         cmd = ['python3', str(BASE / 'autodownloadanim.py'),
-               '--token', token, '--output', str(FBX_TMP)]
-        if character_id:
-            cmd += ['--character-id', character_id]
-        else:
-            cmd += ['--fbx', str(avatar_fbx)]
+               '--token', token, '--fbx', str(avatar_fbx),
+               '--output', str(FBX_TMP)]
 
         rc, out = run_streaming(cmd, timeout=900)
 
