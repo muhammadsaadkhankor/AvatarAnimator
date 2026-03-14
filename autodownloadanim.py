@@ -21,6 +21,7 @@ import sys
 import time
 import json
 import argparse
+import urllib.parse
 from pathlib import Path
 
 try:
@@ -38,11 +39,15 @@ except ImportError:
 #  The search query should match what you'd type in Mixamo's search bar.
 
 ANIMATIONS = {
-   
-    # ── Talking / Explaining ──
-    "talking_1": "Asking A Question With One Hand",
-    
+    "Idle":                     "Standing idle",
+    "Talking":                  "Asking A Question With One Hand",
+    "Angry":                    "Angry Forward Gesture",
+    "Sad":                      "Standing in a Sad Disposition",
+    "Surprised":                "Being Surprised And Looking Right",
+    "Disappointed":             "Disappointed Awe-Shucks",
+    "Thoughtfullheadshake":     "Shaking Head No Thoughfully",
 }
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  EXPORT SETTINGS
@@ -123,6 +128,30 @@ def api_post(url, token, body, retries=MAX_RETRIES):
                 continue
             raise
     raise RuntimeError(f"Failed after {retries} retries: POST {url}")
+
+
+def search_animations(query, token, char_id=None):
+    """Search Mixamo animations using exact working URL format."""
+    encoded = urllib.parse.quote(query)
+    url = f"{API}/products?page=1&limit=96&order=&type=Motion%2CMotionPack&query={encoded}"
+    if char_id:
+        url += f"&character_id={char_id}"
+    headers = make_headers(token)
+    for attempt in range(MAX_RETRIES):
+        r = requests.get(url, headers=headers, timeout=30)
+        if r.status_code == 429:
+            wait = RETRY_WAIT * (attempt + 1)
+            print(f"      ⏱️ Rate limited, waiting {wait}s...")
+            time.sleep(wait)
+            continue
+        if r.status_code == 401:
+            print("\n❌ Token expired! Get a new one from mixamo.com console.\n")
+            sys.exit(1)
+        if r.status_code != 200:
+            print(f"      ⚠️ Search returned {r.status_code}: {r.text[:200]}")
+            return []
+        return r.json().get("results", [])
+    return []
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -289,18 +318,14 @@ def batch_download(animations, char_id, token, output_dir, skip_existing=True):
 
         print(f"\n[{i}/{total}] 🔍 '{search_query}' → {filename}.fbx")
 
-        # Search Mixamo
+        # Search Mixamo using direct URL (bypasses api_get params issue)
         try:
-            results = api_get(f"{API}/products", token, params={
-                "page": 1, "limit": 10, "order": "",
-                "type": "Motion,MotionPack", "query": search_query,
-            })
+            hits = search_animations(search_query, token, char_id)
         except Exception as e:
             print(f"      ❌ Search failed: {e}")
             failed_list.append(filename)
             continue
 
-        hits = results.get("results", [])
         if not hits:
             print(f"      ⚠️  No results for '{search_query}'")
             failed_list.append(filename)

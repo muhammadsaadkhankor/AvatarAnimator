@@ -30,18 +30,15 @@ def get_args():
 def clear_scene():
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=False)
-    for block in bpy.data.meshes:
-        if block.users == 0:
-            bpy.data.meshes.remove(block)
-    for block in bpy.data.armatures:
-        if block.users == 0:
-            bpy.data.armatures.remove(block)
-    for block in bpy.data.actions:
-        if block.users == 0:
-            bpy.data.actions.remove(block)
-    for block in bpy.data.materials:
-        if block.users == 0:
-            bpy.data.materials.remove(block)
+    # Force-remove ALL data blocks so nothing leaks between conversions
+    for block in list(bpy.data.actions):
+        bpy.data.actions.remove(block)
+    for block in list(bpy.data.armatures):
+        bpy.data.armatures.remove(block)
+    for block in list(bpy.data.meshes):
+        bpy.data.meshes.remove(block)
+    for block in list(bpy.data.materials):
+        bpy.data.materials.remove(block)
 
 
 def convert_fbx_to_glb(fbx_path, glb_path):

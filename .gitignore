@@ -1,1 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Generated pipeline output — not committed
+uploads/
+fbx_animations/
+animations/
+output/
+
+# Avatar/model files in root
+avatar.fbx
+avatar.glb
+
+# Node
+node_modules/
+
+# Old project folder (replaced by Animation_mapper)
+glb-animation-combiner/
+
+# Old frontend (replaced by Animation_mapper)
+frontend/
+
+# Secrets
 mixamo_access_token
